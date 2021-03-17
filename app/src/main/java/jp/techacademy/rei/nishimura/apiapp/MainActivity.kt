@@ -1,6 +1,7 @@
 package jp.techacademy.rei.nishimura.apiapp
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.util.Log
 import android.view.inputmethod.InputMethodManager
@@ -10,52 +11,68 @@ import androidx.appcompat.widget.SearchView
 import androidx.viewpager2.widget.ViewPager2
 import com.google.android.material.tabs.TabLayoutMediator
 import kotlinx.android.synthetic.main.activity_main.*
+import kotlinx.android.synthetic.main.fragment_api.*
+import javax.xml.namespace.QName
 
 
 class MainActivity : AppCompatActivity(), FragmentCallback {
 
     private val viewPagerAdapter by lazy { ViewPagerAdapter(this) }
+//    val searchView = toolbar.menu.findItem(R.id.menu_search).actionView as SearchView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val searchView = toolbar.menu.findItem(R.id.menu_search).actionView as SearchView
-        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+        // "DataStore"という名前でインスタンスを生成
+        val dataStore: SharedPreferences = getSharedPreferences("DataStore", Context.MODE_PRIVATE)
 
+        var query = dataStore.getString("query", null)
+        if (query == null) {
+            // 文字列を"Input"に書き込む
+            val editor = dataStore.edit()
+            editor.putString("query", getString(R.string.api_keyword))
+            editor.apply()
+        }
+
+        searchView.setQuery(query, false)
+
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
             //文字入力が確定したときに送られてくる　決定ボタンを押したりしたとき
             override fun onQueryTextSubmit(query: String?): Boolean {
                 Log.v("nullpo_q", "${query}")
                 (viewPagerAdapter.flagments[VIEW_PAGER_POSITION_API] as ApiFragment).updateDate(false, query!!)
 
+                // 文字列を"Input"に書き込む
+                val editor = dataStore.edit()
+                editor.putString("query", query)
+                editor.apply()
+
                 //★★★ ソフトキーボードを隠す。
                 val inputMethodManager: InputMethodManager = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                 inputMethodManager?.hideSoftInputFromWindow(currentFocus?.windowToken, InputMethodManager.HIDE_NOT_ALWAYS)
 
-
                 //相変わらずよくわからない返値　たぶんfalseで元の設定されたイベントを行う trueでしない
                 return true
             }
+
             //文字が入力されるたびに入力文字列が送られてくる　部分一致のサジェスト機能などな利用できる
             override fun onQueryTextChange(newText: String?): Boolean {
                 return false
             }
         })
 
+
+
         toolbar.setOnMenuItemClickListener {
             when(it.itemId){
                 R.id.menu_info -> {
-                    ReviewDialog().show(supportFragmentManager,"")
+                    InfoDialog().show(supportFragmentManager,"")
                     true
-
                 }
                 else ->{true}
-
             }
         }
-
-
-
 
         // ViewPager2の初期化
         viewPager2.apply {
@@ -70,6 +87,7 @@ class MainActivity : AppCompatActivity(), FragmentCallback {
         TabLayoutMediator(tabLayout, viewPager2) { tab, position ->
             tab.setText(viewPagerAdapter.titleIds[position])
         }.attach()
+
     }
 
     override fun onClickItem(shop: Shop) {
